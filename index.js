@@ -3,7 +3,7 @@ import cors from 'cors';
 
 
 import rotaCliente from './Rotas/rotaCliente.js';
-import rotaProduto from './Rotas/rotaProduto.js';
+import rotaPizza from './Rotas/rotaPizza.js';
 import rotaPedido from './Rotas/rotaPedido.js';
 
 const app = express();
@@ -21,7 +21,7 @@ app.use(express.json());
 
 
 app.use('/cliente', rotaCliente);
-app.use('/produto', rotaProduto);
+app.use('/pizza', rotaPizza);
 app.use('/pedido', rotaPedido);
 
 app.listen(porta, host, () => {

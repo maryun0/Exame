@@ -1,6 +1,6 @@
 import Cliente from "../Modelo/cliente.js";
 import Pedido from "../Modelo/pedido.js";
-import Produto from "../Modelo/produto.js";
+import Pizza from "../Modelo/pizza.js";
 import ItemPedido from "../Modelo/itemPedido.js";
 
 export default class PedidoCtrl {
@@ -15,18 +15,20 @@ export default class PedidoCtrl {
             const totalPedido = dados.totalPedido;
             const itensPedido = dados.itens;
 
+            
             const objCliente = new Cliente(cliente.codigo); 
 
-          
+           
             let itens = [];
             for (const item of itensPedido) {
-                const produto = new Produto(item.codigo);
-                const objItem = new ItemPedido(produto, item.quantidade, item.precoUnitario);
+                const pizza = new Pizza(item.codigo);
+                const objItem = new ItemPedido(pizza, item.quantidade, item.precoUnitario);
                 itens.push(objItem);
             }
 
             const pedido = new Pedido(0, objCliente, dataPedido, totalPedido, itens);
 
+          
             pedido.gravar().then(() => {
                 resposta.status(200).json({
                     "status": true,
@@ -47,7 +49,7 @@ export default class PedidoCtrl {
         }
     }
 
- 
+   
     consultar(requisicao, resposta) {
         resposta.type('application/json');
         if (requisicao.method === 'GET') {
@@ -73,7 +75,7 @@ export default class PedidoCtrl {
         }
     }
 
-   
+    
     alterar(requisicao, resposta) {
         resposta.type('application/json');
         if (requisicao.method === 'PUT' && requisicao.is('application/json')) {
@@ -84,20 +86,20 @@ export default class PedidoCtrl {
             const totalPedido = dados.totalPedido;
             const itensPedido = dados.itens;
 
-           
+          
             const objCliente = new Cliente(cliente.codigo);
 
-          
+           
             let itens = [];
             for (const item of itensPedido) {
-                const produto = new Produto(item.codigo);
-                const objItem = new ItemPedido(produto, item.quantidade, item.precoUnitario);
+                const pizza = new Pizza(item.codigo);
+                const objItem = new ItemPedido(pizza, item.quantidade, item.precoUnitario);
                 itens.push(objItem);
             }
 
             const pedido = new Pedido(codigo, objCliente, dataPedido, totalPedido, itens);
 
-          
+        
             pedido.atualizar().then(() => {
                 resposta.status(200).json({
                     "status": true,
@@ -117,7 +119,7 @@ export default class PedidoCtrl {
         }
     }
 
-  
+    
     excluir(requisicao, resposta) {
         resposta.type('application/json');
         if (requisicao.method === 'DELETE' && requisicao.is('application/json')) {
@@ -127,7 +129,7 @@ export default class PedidoCtrl {
             if (codigo) {
                 const pedido = new Pedido(codigo);
 
-             
+        
                 pedido.apagar().then(() => {
                     resposta.status(200).json({
                         "status": true,

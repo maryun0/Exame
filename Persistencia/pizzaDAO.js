@@ -1,7 +1,7 @@
-import Produto from '../Modelo/produto.js';
+import Pizza from '../Modelo/pizza.js';
 import conectar from './conexao.js';
 
-export default class ProdutoDAO {
+export default class PizzaDAO {
 
     constructor() {
         this.init();
@@ -11,11 +11,11 @@ export default class ProdutoDAO {
         try {
             const conexao = await conectar(); 
             const sql = `
-            CREATE TABLE IF NOT EXISTS produto(
+            CREATE TABLE IF NOT EXISTS pizza(
                 codigo INT NOT NULL AUTO_INCREMENT,
-                nomeProduto VARCHAR(100) NOT NULL,
+                nomePizza VARCHAR(100) NOT NULL,
                 preco DECIMAL(10,2) NOT NULL DEFAULT 0,
-                CONSTRAINT pk_produto PRIMARY KEY(codigo)
+                CONSTRAINT pk_pizza PRIMARY KEY(codigo)
             )`;
             await conexao.execute(sql);
             global.poolConexoes.releaseConnection(conexao);
@@ -24,24 +24,24 @@ export default class ProdutoDAO {
         }
     }
 
-    async gravar(produto) {
-        if (produto instanceof Produto) {
-            const sql = `INSERT INTO produto(nomeProduto, preco)
+    async gravar(pizza) {
+        if (pizza instanceof Pizza) {
+            const sql = `INSERT INTO pizza(nomePizza, preco)
                          VALUES(?,?)`;
-            const parametros = [produto.nomeProduto, produto.preco];
+            const parametros = [pizza.nomePizza, pizza.preco];
 
             const conexao = await conectar();
             const retorno = await conexao.execute(sql, parametros);
-            produto.codigo = retorno[0].insertId;
+            pizza.codigo = retorno[0].insertId;
             global.poolConexoes.releaseConnection(conexao);
         }
     }
 
-    async atualizar(produto) {
-        if (produto instanceof Produto) {  
-            const sql = `UPDATE produto SET nomeProduto = ?, preco = ?
+    async atualizar(pizza) {
+        if (pizza instanceof Pizza) {  
+            const sql = `UPDATE pizza SET nomePizza = ?, preco = ?
                          WHERE codigo = ?`;
-            const parametros = [produto.nomeProduto, produto.preco, produto.codigo];
+            const parametros = [pizza.nomePizza, pizza.preco, pizza.codigo];
 
             const conexao = await conectar();
             await conexao.execute(sql, parametros);
@@ -49,10 +49,10 @@ export default class ProdutoDAO {
         }
     }
 
-    async excluir(produto) {
-        if (produto instanceof Produto) {
-            const sql = `DELETE FROM produto WHERE codigo = ?`;
-            const parametros = [produto.codigo];
+    async excluir(pizza) {
+        if (pizza instanceof Pizza) {
+            const sql = `DELETE FROM pizza WHERE codigo = ?`;
+            const parametros = [pizza.codigo];
             const conexao = await conectar();
             await conexao.execute(sql, parametros);
             global.poolConexoes.releaseConnection(conexao);
@@ -64,34 +64,34 @@ export default class ProdutoDAO {
             termo = "";
         }
         const conexao = await conectar();
-        let listaProdutos = [];
+        let listaPizzas = [];
         if (!isNaN(parseInt(termo))) {
         
-            const sql = `SELECT p.codigo, p.nomeProduto, p.preco
-                         FROM produto p 
+            const sql = `SELECT p.codigo, p.nomePizza, p.preco
+                         FROM pizza p 
                          WHERE p.codigo = ?
-                         ORDER BY p.nomeProduto`;
+                         ORDER BY p.nomePizza`;
             const parametros = [termo];
             const [registros] = await conexao.execute(sql, parametros);
             global.poolConexoes.releaseConnection(conexao);
             for (const registro of registros) {
-                const produto = new Produto(registro.codigo, registro.nomeProduto, registro.preco);
-                listaProdutos.push(produto);
+                const pizza = new Pizza(registro.codigo, registro.nomePizza, registro.preco);
+                listaPizzas.push(pizza);
             }
         } else {
      
-            const sql = `SELECT p.codigo, p.nomeProduto, p.preco
-                         FROM produto p 
-                         WHERE p.nomeProduto LIKE ?
-                         ORDER BY p.nomeProduto`;
+            const sql = `SELECT p.codigo, p.nomePizza, p.preco
+                         FROM pizza p 
+                         WHERE p.nomePizza LIKE ?
+                         ORDER BY p.nomePizza`;
             const parametros = ['%' + termo + '%'];
             const [registros] = await conexao.execute(sql, parametros);
             for (const registro of registros) {
-                const produto = new Produto(registro.codigo, registro.nomeProduto, registro.preco);
-                listaProdutos.push(produto);
+                const pizza = new Pizza(registro.codigo, registro.nomePizza, registro.preco);
+                listaPizzas.push(pizza);
             }
         }
 
-        return listaProdutos;
+        return listaPizzas;
     }
 }
