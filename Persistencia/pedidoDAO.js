@@ -5,28 +5,31 @@ import ItemPedido from "../Modelo/itemPedido.js";
 import conectar from "./conexao.js";
 
 export default class PedidoDAO {
-
     async gravar(pedido) {
         if (pedido instanceof Pedido) {
             const conexao = await conectar();
-            await conexao.beginTransaction(); 
+            await conexao.beginTransaction();
             try {
-           
-                const sql = 'INSERT INTO pedido(cliente_codigo, data_pedido, total) VALUES(?,str_to_date(?,"%d/%m/%Y"),?)';
+                let total = 0;
+                for (const item of pedido.itens) {
+                    total += item.quantidade * item.precoUnitario;
+                }
+                pedido.total = total;
+
+                const sql = 'INSERT INTO pedido(cliente_codigo, data_pedido, total) VALUES(?, str_to_date(?, "%d/%m/%Y"), ?)';
                 const parametros = [pedido.cliente.codigo, pedido.data, pedido.total];
                 const retorno = await conexao.execute(sql, parametros);
                 pedido.codigo = retorno[0].insertId;
 
-             
                 const sql2 = 'INSERT INTO pedido_pizza(pedido_codigo, pizza_codigo, quantidade, preco_unitario) VALUES(?,?,?,?)';
                 for (const item of pedido.itens) {
                     const parametros2 = [pedido.codigo, item.pizza.codigo, item.quantidade, item.precoUnitario];
                     await conexao.execute(sql2, parametros2);
                 }
-                await conexao.commit(); 
+                await conexao.commit();
                 global.poolConexoes.releaseConnection(conexao);
             } catch (error) {
-                await conexao.rollback(); 
+                await conexao.rollback();
                 throw error;
             }
         }
@@ -37,12 +40,16 @@ export default class PedidoDAO {
             const conexao = await conectar();
             await conexao.beginTransaction();
             try {
-            
-                const sql = 'UPDATE pedido SET cliente_codigo = ?, data_pedido = str_to_date(?,"%d/%m/%Y"), total = ? WHERE codigo = ?';
+                let total = 0;
+                for (const item of pedido.itens) {
+                    total += item.quantidade * item.precoUnitario;
+                }
+                pedido.total = total;
+
+                const sql = 'UPDATE pedido SET cliente_codigo = ?, data_pedido = str_to_date(?, "%d/%m/%Y"), total = ? WHERE codigo = ?';
                 const parametros = [pedido.cliente.codigo, pedido.data, pedido.total, pedido.codigo];
                 await conexao.execute(sql, parametros);
 
-         
                 await conexao.execute('DELETE FROM pedido_pizza WHERE pedido_codigo = ?', [pedido.codigo]);
 
                 const sql2 = 'INSERT INTO pedido_pizza(pedido_codigo, pizza_codigo, quantidade, preco_unitario) VALUES(?,?,?,?)';
@@ -65,12 +72,8 @@ export default class PedidoDAO {
             const conexao = await conectar();
             await conexao.beginTransaction();
             try {
-              
                 await conexao.execute('DELETE FROM pedido_pizza WHERE pedido_codigo = ?', [pedido.codigo]);
-
-      
                 await conexao.execute('DELETE FROM pedido WHERE codigo = ?', [pedido.codigo]);
-
                 await conexao.commit();
                 global.poolConexoes.releaseConnection(conexao);
             } catch (error) {
@@ -85,8 +88,8 @@ export default class PedidoDAO {
         const conexao = await conectar();
         let sql = "";
         let parametros = [];
-        
-        if (!isNaN(termoBusca)) { 
+
+        if (!isNaN(termoBusca)) {
             sql = `SELECT p.codigo, p.cliente_codigo, p.data_pedido, p.total,
                    c.nome, c.endereco, c.telefone,
                    pizza.codigo AS pizza_codigo, pizza.nomePizza, pizza.preco,
