@@ -1,121 +1,89 @@
+import conectar from "./conexao.js";
 import Pedido from "../Modelo/pedido.js";
 import Cliente from "../Modelo/cliente.js";
-import Pizza from "../Modelo/pizza.js";
 import ItemPedido from "../Modelo/itemPedido.js";
-import conectar from "./conexao.js";
+import Pizza from "../Modelo/pizza.js";
 
 export default class PedidoDAO {
     async gravar(pedido) {
         if (pedido instanceof Pedido) {
             const conexao = await conectar();
-            await conexao.beginTransaction();
             try {
-                const sql = 'INSERT INTO pedido(cliente_codigo) VALUES(?)';
-                const parametros = [pedido.cliente.codigo];
-                const retorno = await conexao.execute(sql, parametros);
-                pedido.codigo = retorno[0].insertId;
+                await conexao.beginTransaction();
 
-                const sql2 = 'INSERT INTO pedido_pizza(pedido_codigo, pizza_codigo, quantidade) VALUES(?,?,?)';
+                
+                const sqlPedido = `INSERT INTO pedido (cliente_id) VALUES (?)`;
+                const [resultado] = await conexao.execute(sqlPedido, [pedido.cliente.codigo]);
+                pedido.codigo = resultado.insertId;
+
+                const sqlItem = `INSERT INTO item_pedido (pedido_id, pizza_id, quantidade) VALUES (?, ?, ?)`;
                 for (const item of pedido.itens) {
-                    const parametros2 = [pedido.codigo, item.pizza.codigo, item.quantidade];
-                    await conexao.execute(sql2, parametros2);
-                }
-                await conexao.commit();
-                global.poolConexoes.releaseConnection(conexao);
-            } catch (error) {
-                await conexao.rollback();
-                throw error;
-            }
-        }
-    }
-
-    async alterar(pedido) {
-        if (pedido instanceof Pedido) {
-            const conexao = await conectar();
-            await conexao.beginTransaction();
-            try {
-                const sql = 'UPDATE pedido SET cliente_codigo = ? WHERE codigo = ?';
-                const parametros = [pedido.cliente.codigo, pedido.codigo];
-                await conexao.execute(sql, parametros);
-
-                await conexao.execute('DELETE FROM pedido_pizza WHERE pedido_codigo = ?', [pedido.codigo]);
-
-                const sql2 = 'INSERT INTO pedido_pizza(pedido_codigo, pizza_codigo, quantidade) VALUES(?,?,?)';
-                for (const item of pedido.itens) {
-                    const parametros2 = [pedido.codigo, item.pizza.codigo, item.quantidade];
-                    await conexao.execute(sql2, parametros2);
+                    await conexao.execute(sqlItem, [pedido.codigo, item.pizza.codigo, item.quantidade]);
                 }
 
                 await conexao.commit();
-                global.poolConexoes.releaseConnection(conexao);
-            } catch (error) {
+            } catch (erro) {
                 await conexao.rollback();
-                throw error;
+                throw erro;
+            } finally {
+                global.poolConexoes.releaseConnection(conexao);
             }
         }
     }
 
-    async deletar(pedido) {
-        if (pedido instanceof Pedido) {
-            const conexao = await conectar();
-            await conexao.beginTransaction();
-            try {
-                await conexao.execute('DELETE FROM pedido_pizza WHERE pedido_codigo = ?', [pedido.codigo]);
-                await conexao.execute('DELETE FROM pedido WHERE codigo = ?', [pedido.codigo]);
-                await conexao.commit();
-                global.poolConexoes.releaseConnection(conexao);
-            } catch (error) {
-                await conexao.rollback();
-                throw error;
-            }
-        }
-    }
-
-    async consultar(termoBusca) {
-        const listaPedidos = [];
+    async consultar(termo) {
         const conexao = await conectar();
-        let sql = "";
-        let parametros = [];
+        let listaPedidos = [];
+        try {
+            const sqlPedido = `
+                SELECT p.codigo, c.codigo AS clienteCodigo, c.nome AS clienteNome 
+                FROM pedido p 
+                JOIN cliente c ON p.cliente_id = c.codigo 
+                WHERE c.nome LIKE ? OR p.codigo = ?
+            `;
+            const parametros = ['%' + termo + '%', isNaN(termo) ? null : termo];
+            const [pedidos] = await conexao.execute(sqlPedido, parametros);
 
-        if (!isNaN(termoBusca)) {
-            sql = `SELECT p.codigo, p.cliente_codigo,
-                   c.nome, c.endereco, c.telefone,
-                   pizza.codigo AS pizza_codigo, pizza.nomePizza, pizza.preco,
-                   i.pizza_codigo, i.quantidade
-                   FROM pedido AS p
-                   INNER JOIN cliente AS c ON p.cliente_codigo = c.codigo
-                   INNER JOIN pedido_pizza AS i ON i.pedido_codigo = p.codigo
-                   INNER JOIN pizza AS pizza ON pizza.codigo = i.pizza_codigo
-                   WHERE p.codigo = ?`;
-            parametros = [termoBusca];
-        } else {
-            sql = `SELECT p.codigo, p.cliente_codigo,
-                   c.nome, c.endereco, c.telefone,
-                   pizza.codigo AS pizza_codigo, pizza.nomePizza, pizza.preco,
-                   i.pizza_codigo, i.quantidade
-                   FROM pedido AS p
-                   INNER JOIN cliente AS c ON p.cliente_codigo = c.codigo
-                   INNER JOIN pedido_pizza AS i ON i.pedido_codigo = p.codigo
-                   INNER JOIN pizza AS pizza ON pizza.codigo = i.pizza_codigo`;
-        }
+            for (const row of pedidos) {
+                const cliente = new Cliente(row.clienteCodigo, row.clienteNome);
+                const pedido = new Pedido(cliente, [], row.codigo);
 
-        const [registros] = await conexao.execute(sql, parametros);
-        global.poolConexoes.releaseConnection(conexao);
+                const sqlItens = `
+                    SELECT i.quantidade, pi.codigo AS pizzaCodigo, pi.nomePizza, pi.preco
+                    FROM item_pedido i 
+                    JOIN pizza pi ON i.pizza_id = pi.codigo 
+                    WHERE i.pedido_id = ?
+                `;
+                const [itens] = await conexao.execute(sqlItens, [pedido.codigo]);
+                pedido.itens = itens.map(item => new ItemPedido(new Pizza(item.pizzaCodigo, item.nomePizza, item.preco), item.quantidade));
 
-        if (registros.length > 0) {
-            const cliente = new Cliente(registros[0].cliente_codigo, registros[0].nome, registros[0].endereco, registros[0].telefone);
-            let listaItensPedido = [];
-
-            for (const registro of registros) {
-                const pizza = new Pizza(registro.pizza_codigo, registro.nomePizza, registro.preco);
-                const itemPedido = new ItemPedido(pizza, registro.quantidade);
-                listaItensPedido.push(itemPedido);
+                listaPedidos.push(pedido);
             }
-
-            const pedido = new Pedido(registros[0].codigo, cliente, listaItensPedido);
-            listaPedidos.push(pedido);
+        } catch (erro) {
+            console.log("Erro ao consultar pedidos: " + erro.message);
+        } finally {
+            global.poolConexoes.releaseConnection(conexao);
         }
-
         return listaPedidos;
+    }
+
+    async excluir(codigoPedido) {
+        const conexao = await conectar();
+        try {
+            await conexao.beginTransaction();
+
+            const sqlExcluirItens = `DELETE FROM item_pedido WHERE pedido_id = ?`;
+            await conexao.execute(sqlExcluirItens, [codigoPedido]);
+
+            const sqlExcluirPedido = `DELETE FROM pedido WHERE codigo = ?`;
+            await conexao.execute(sqlExcluirPedido, [codigoPedido]);
+
+            await conexao.commit();
+        } catch (erro) {
+            await conexao.rollback();
+            throw erro;
+        } finally {
+            global.poolConexoes.releaseConnection(conexao);
+        }
     }
 }

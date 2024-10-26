@@ -6,7 +6,7 @@ const pedidoCtrl = new PedidoCtrl();
 
 
 rotaPedido.post('/', pedidoCtrl.gravar)      
-.put('/', pedidoCtrl.alterar)               
+.put('/', pedidoCtrl.atualizar)               
 .delete('/', pedidoCtrl.excluir)            
 .get('/', pedidoCtrl.consultar)             
 .get('/:termo', pedidoCtrl.consultar);      

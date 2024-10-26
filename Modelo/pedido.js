@@ -1,36 +1,31 @@
-import PedidoDAO from "../Persistencia/pedidoDAO.js";
 
+import PedidoDAO from "../Persistencia/pedidoDAO.js";
 export default class Pedido {
     #codigo;
-    #cliente; 
-    #itens; 
+    #cliente;
+    #itens;
 
-    constructor(codigo, cliente, itens) {
+    constructor(cliente, itens = [], codigo = 0) {
         this.#codigo = codigo;
-        this.#cliente = cliente; 
+        this.#cliente = cliente;
         this.#itens = itens; 
     }
 
-    
+    // Getters e Setters
     get codigo() {
         return this.#codigo;
     }
 
     set codigo(novoCodigo) {
-        if (novoCodigo === "" || typeof novoCodigo !== "number") {
-            console.log("Formato de dado inválido");
-        } else {
-            this.#codigo = novoCodigo;
-        }
+        this.#codigo = novoCodigo;
     }
 
-   
     get cliente() {
         return this.#cliente;
     }
 
     set cliente(novoCliente) {
-        this.#cliente = novoCliente; 
+        this.#cliente = novoCliente;
     }
 
     get itens() {
@@ -38,36 +33,29 @@ export default class Pedido {
     }
 
     set itens(novosItens) {
-        this.#itens = novosItens; 
+        this.#itens = novosItens;
     }
 
     toJSON() {
         return {
-            'codigo': this.#codigo,
-            'cliente': this.#cliente.toJSON(),
-            'itens': this.#itens.map(item => item.toJSON())
+            codigo: this.#codigo,
+            cliente: this.#cliente.toJSON(),
+            itens: this.#itens.map(item => item.toJSON())
         };
     }
 
-
     async gravar() {
         const pedidoDAO = new PedidoDAO();
-        this.codigo = await pedidoDAO.gravar(this);
+        await pedidoDAO.gravar(this);
     }
 
-    async atualizar() {
+    async excluir() {
         const pedidoDAO = new PedidoDAO();
-        await pedidoDAO.alterar(this);
+        await pedidoDAO.excluir(this.codigo);
     }
 
-    async deletar() {
+    async consultar(termo) {
         const pedidoDAO = new PedidoDAO();
-        await pedidoDAO.deletar(this);
-    }
-
-    async consultar(termoBusca) {
-        const pedidoDAO = new PedidoDAO();
-        const listaPedidos = await pedidoDAO.consultar(termoBusca);
-        return listaPedidos;
+        return await pedidoDAO.consultar(termo);
     }
 }

@@ -1,126 +1,152 @@
-import Cliente from "../Modelo/cliente.js";
 import Pedido from "../Modelo/pedido.js";
+import Cliente from "../Modelo/cliente.js";
 import Pizza from "../Modelo/pizza.js";
 import ItemPedido from "../Modelo/itemPedido.js";
+import ClienteDAO from "../Persistencia/clienteDAO.js";
 
 export default class PedidoCtrl {
-
-    gravar(requisicao, resposta) {
-        resposta.type('application/json');
-        if (requisicao.method === 'POST' && requisicao.is('application/json')) {
-            const dados = requisicao.body;
-            const cliente = dados.cliente;
-            const itensPedido = dados.itens;
-
     
-            console.log("Cliente código recebido:", cliente.codigo);
+    // Método para gravar um novo pedido
+    async gravar(requisicao, resposta) {
+        resposta.type("application/json");
+
+        if (requisicao.method === "POST" && requisicao.is("application/json")) {
+            const dados = requisicao.body;
+            const clienteData = dados.cliente;
+            const itensData = dados.itens;
+
+            if (clienteData && itensData && Array.isArray(itensData)) {
+                try {
+               
+                    const clienteDAO = new ClienteDAO();
+                    const clienteCompleto = await clienteDAO.consultarCodigo(clienteData.codigo);
+
+                    if (!clienteCompleto) {
+                        resposta.status(404).json({
+                            "status": false,
+                            "mensagem": "Cliente não encontrado!"
+                        });
+                        return;
+                    }
+
+                    const itensPedido = itensData.map(item => {
+                        if (item.pizza && item.pizza.codigo && item.quantidade) {
+                            return new ItemPedido(new Pizza(item.pizza.codigo), item.quantidade);
+                        } else {
+                            throw new Error("Item de pedido inválido. Cada item deve conter uma pizza com código e uma quantidade.");
+                        }
+                    });
 
           
-            const objCliente = new Cliente(cliente.codigo);
+                    const pedido = new Pedido(clienteCompleto, itensPedido);
 
-            let itens = [];
-            for (const item of itensPedido) {
-                const pizza = new Pizza(item.codigo);
-                const objItem = new ItemPedido(pizza, item.quantidade);
-                itens.push(objItem);
-            }
-
-           
-            const pedido = new Pedido(0, objCliente, itens);
-
-            pedido.gravar().then(() => {
-                resposta.status(200).json({
-                    "status": true,
-                    "mensagem": "Pedido registrado com sucesso!",
-                    "codigo": pedido.codigo
-                });
-            }).catch((erro) => {
-                resposta.status(500).json({
+                    await pedido.gravar();
+                    resposta.status(200).json({
+                        "status": true,
+                        "mensagem": "Pedido gravado com sucesso!",
+                        "codigoPedido": pedido.codigo
+                    });
+                } catch (erro) {
+                    resposta.status(500).json({
+                        "status": false,
+                        "mensagem": "Erro ao gravar o pedido: " + erro.message
+                    });
+                }
+            } else {
+                resposta.status(400).json({
                     "status": false,
-                    "mensagem": "Erro ao registrar o pedido: " + erro.message
+                    "mensagem": "Por favor, forneça o cliente e os itens do pedido conforme documentação da API!"
                 });
-            });
+            }
         } else {
             resposta.status(400).json({
                 "status": false,
-                "mensagem": "Requisição inválida!"
+                "mensagem": "Por favor, utilize o método POST para criar um pedido!"
             });
         }
     }
 
-    consultar(requisicao, resposta) {
-        resposta.type('application/json');
-        if (requisicao.method === 'GET') {
-            let termo = requisicao.params.termo;
-            const pedido = new Pedido(0);
 
+    async consultar(requisicao, resposta) {
+        resposta.type("application/json");
+        const termo = requisicao.params.termo || "";
+
+        if (requisicao.method === "GET") {
+            const pedido = new Pedido();
             pedido.consultar(termo).then((listaPedidos) => {
-                resposta.status(200).json({
+                resposta.json({
                     "status": true,
                     "listaPedidos": listaPedidos
                 });
             }).catch((erro) => {
-                resposta.status(500).json({
+                resposta.json({
                     "status": false,
-                    "mensagem": "Erro ao consultar o pedido: " + erro.message
+                    "mensagem": "Não foi possível obter os pedidos: " + erro.message
                 });
             });
         } else {
             resposta.status(400).json({
                 "status": false,
-                "mensagem": "Requisição inválida!"
+                "mensagem": "Por favor, utilize o método GET para consultar pedidos!"
             });
         }
     }
 
-    alterar(requisicao, resposta) {
-        resposta.type('application/json');
-        if (requisicao.method === 'PUT' && requisicao.is('application/json')) {
+ 
+    async atualizar(requisicao, resposta) {
+        resposta.type("application/json");
+
+        if ((requisicao.method === "PUT" || requisicao.method === "PATCH") && requisicao.is("application/json")) {
             const dados = requisicao.body;
-            const codigo = dados.codigo;
-            const cliente = dados.cliente;
-            const itensPedido = dados.itens;
+            const codigoPedido = dados.codigo;
+            const clienteData = dados.cliente;
+            const itensData = dados.itens;
 
-            const objCliente = new Cliente(cliente.codigo);
+            if (codigoPedido && clienteData && itensData && Array.isArray(itensData)) {
+                const cliente = new Cliente(clienteData.codigo);
+                const itensPedido = itensData.map(item => 
+                    new ItemPedido(new Pizza(item.pizza.codigo), item.quantidade)
+                );
 
-            let itens = [];
-            for (const item of itensPedido) {
-                const pizza = new Pizza(item.codigo);
-                const objItem = new ItemPedido(pizza, item.quantidade);
-                itens.push(objItem);
+                const pedido = new Pedido(cliente, itensPedido, codigoPedido);
+
+                pedido.atualizar().then(() => {
+                    resposta.status(200).json({
+                        "status": true,
+                        "mensagem": "Pedido atualizado com sucesso!"
+                    });
+                }).catch((erro) => {
+                    resposta.status(500).json({
+                        "status": false,
+                        "mensagem": "Erro ao atualizar o pedido: " + erro.message
+                    });
+                });
+            } else {
+                resposta.status(400).json({
+                    "status": false,
+                    "mensagem": "Por favor, forneça o código do pedido, cliente e itens conforme a documentação da API!"
+                });
             }
-
-            const pedido = new Pedido(codigo, objCliente, itens);
-
-            pedido.atualizar().then(() => {
-                resposta.status(200).json({
-                    "status": true,
-                    "mensagem": "Pedido atualizado com sucesso!"
-                });
-            }).catch((erro) => {
-                resposta.status(500).json({
-                    "status": false,
-                    "mensagem": "Erro ao atualizar o pedido: " + erro.message
-                });
-            });
         } else {
             resposta.status(400).json({
                 "status": false,
-                "mensagem": "Requisição inválida!"
+                "mensagem": "Por favor, utilize o método PUT ou PATCH para atualizar o pedido!"
             });
         }
     }
 
-    excluir(requisicao, resposta) {
-        resposta.type('application/json');
-        if (requisicao.method === 'DELETE' && requisicao.is('application/json')) {
+    async excluir(requisicao, resposta) {
+        resposta.type("application/json");
+
+        if (requisicao.method === "DELETE" && requisicao.is("application/json")) {
             const dados = requisicao.body;
-            const codigo = dados.codigo;
+            const codigoPedido = dados.codigo;
 
-            if (codigo) {
-                const pedido = new Pedido(codigo);
+            if (codigoPedido) {
+                const pedido = new Pedido();
+                pedido.codigo = codigoPedido;
 
-                pedido.deletar().then(() => {
+                pedido.excluir().then(() => {
                     resposta.status(200).json({
                         "status": true,
                         "mensagem": "Pedido excluído com sucesso!"
@@ -134,13 +160,13 @@ export default class PedidoCtrl {
             } else {
                 resposta.status(400).json({
                     "status": false,
-                    "mensagem": "Código do pedido não informado!"
+                    "mensagem": "Por favor, forneça o código do pedido a ser excluído!"
                 });
             }
         } else {
             resposta.status(400).json({
                 "status": false,
-                "mensagem": "Requisição inválida!"
+                "mensagem": "Por favor, utilize o método DELETE para excluir um pedido!"
             });
         }
     }
