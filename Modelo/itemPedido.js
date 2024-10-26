@@ -1,12 +1,10 @@
 export default class ItemPedido {
     #pizza; 
     #quantidade; 
-    #precoUnitario; 
     
-    constructor(pizza, quantidade, precoUnitario) {
+    constructor(pizza, quantidade) {
         this.#pizza = pizza;
         this.#quantidade = quantidade;
-        this.#precoUnitario = precoUnitario;
     }
 
     // Getters e Setters
@@ -25,21 +23,11 @@ export default class ItemPedido {
     set quantidade(novaQuantidade) {
         this.#quantidade = novaQuantidade;
     }
-    
-    get precoUnitario() {
-        return this.#precoUnitario;
-    }
 
-    set precoUnitario(novoPrecoUnitario) {
-        this.#precoUnitario = novoPrecoUnitario;
-    }
-
-  
     toJSON() {
         return {
             'pizza': this.#pizza.toJSON(), 
-            'quantidade': this.#quantidade,
-            'precoUnitario': this.#precoUnitario
+            'quantidade': this.#quantidade
         };
     }
 }

@@ -10,20 +10,14 @@ export default class PedidoDAO {
             const conexao = await conectar();
             await conexao.beginTransaction();
             try {
-                let total = 0;
-                for (const item of pedido.itens) {
-                    total += item.quantidade * item.precoUnitario;
-                }
-                pedido.total = total;
-
-                const sql = 'INSERT INTO pedido(cliente_codigo, data_pedido, total) VALUES(?, str_to_date(?, "%d/%m/%Y"), ?)';
-                const parametros = [pedido.cliente.codigo, pedido.data, pedido.total];
+                const sql = 'INSERT INTO pedido(cliente_codigo) VALUES(?)';
+                const parametros = [pedido.cliente.codigo];
                 const retorno = await conexao.execute(sql, parametros);
                 pedido.codigo = retorno[0].insertId;
 
-                const sql2 = 'INSERT INTO pedido_pizza(pedido_codigo, pizza_codigo, quantidade, preco_unitario) VALUES(?,?,?,?)';
+                const sql2 = 'INSERT INTO pedido_pizza(pedido_codigo, pizza_codigo, quantidade) VALUES(?,?,?)';
                 for (const item of pedido.itens) {
-                    const parametros2 = [pedido.codigo, item.pizza.codigo, item.quantidade, item.precoUnitario];
+                    const parametros2 = [pedido.codigo, item.pizza.codigo, item.quantidade];
                     await conexao.execute(sql2, parametros2);
                 }
                 await conexao.commit();
@@ -40,21 +34,15 @@ export default class PedidoDAO {
             const conexao = await conectar();
             await conexao.beginTransaction();
             try {
-                let total = 0;
-                for (const item of pedido.itens) {
-                    total += item.quantidade * item.precoUnitario;
-                }
-                pedido.total = total;
-
-                const sql = 'UPDATE pedido SET cliente_codigo = ?, data_pedido = str_to_date(?, "%d/%m/%Y"), total = ? WHERE codigo = ?';
-                const parametros = [pedido.cliente.codigo, pedido.data, pedido.total, pedido.codigo];
+                const sql = 'UPDATE pedido SET cliente_codigo = ? WHERE codigo = ?';
+                const parametros = [pedido.cliente.codigo, pedido.codigo];
                 await conexao.execute(sql, parametros);
 
                 await conexao.execute('DELETE FROM pedido_pizza WHERE pedido_codigo = ?', [pedido.codigo]);
 
-                const sql2 = 'INSERT INTO pedido_pizza(pedido_codigo, pizza_codigo, quantidade, preco_unitario) VALUES(?,?,?,?)';
+                const sql2 = 'INSERT INTO pedido_pizza(pedido_codigo, pizza_codigo, quantidade) VALUES(?,?,?)';
                 for (const item of pedido.itens) {
-                    const parametros2 = [pedido.codigo, item.pizza.codigo, item.quantidade, item.precoUnitario];
+                    const parametros2 = [pedido.codigo, item.pizza.codigo, item.quantidade];
                     await conexao.execute(sql2, parametros2);
                 }
 
@@ -67,7 +55,7 @@ export default class PedidoDAO {
         }
     }
 
-    async excluir(pedido) {
+    async deletar(pedido) {
         if (pedido instanceof Pedido) {
             const conexao = await conectar();
             await conexao.beginTransaction();
@@ -90,10 +78,10 @@ export default class PedidoDAO {
         let parametros = [];
 
         if (!isNaN(termoBusca)) {
-            sql = `SELECT p.codigo, p.cliente_codigo, p.data_pedido, p.total,
+            sql = `SELECT p.codigo, p.cliente_codigo,
                    c.nome, c.endereco, c.telefone,
                    pizza.codigo AS pizza_codigo, pizza.nomePizza, pizza.preco,
-                   i.pizza_codigo, i.quantidade, i.preco_unitario
+                   i.pizza_codigo, i.quantidade
                    FROM pedido AS p
                    INNER JOIN cliente AS c ON p.cliente_codigo = c.codigo
                    INNER JOIN pedido_pizza AS i ON i.pedido_codigo = p.codigo
@@ -101,10 +89,10 @@ export default class PedidoDAO {
                    WHERE p.codigo = ?`;
             parametros = [termoBusca];
         } else {
-            sql = `SELECT p.codigo, p.cliente_codigo, p.data_pedido, p.total,
+            sql = `SELECT p.codigo, p.cliente_codigo,
                    c.nome, c.endereco, c.telefone,
                    pizza.codigo AS pizza_codigo, pizza.nomePizza, pizza.preco,
-                   i.pizza_codigo, i.quantidade, i.preco_unitario
+                   i.pizza_codigo, i.quantidade
                    FROM pedido AS p
                    INNER JOIN cliente AS c ON p.cliente_codigo = c.codigo
                    INNER JOIN pedido_pizza AS i ON i.pedido_codigo = p.codigo
@@ -120,11 +108,11 @@ export default class PedidoDAO {
 
             for (const registro of registros) {
                 const pizza = new Pizza(registro.pizza_codigo, registro.nomePizza, registro.preco);
-                const itemPedido = new ItemPedido(pizza, registro.quantidade, registro.preco_unitario);
+                const itemPedido = new ItemPedido(pizza, registro.quantidade);
                 listaItensPedido.push(itemPedido);
             }
 
-            const pedido = new Pedido(registros[0].codigo, cliente, registros[0].data_pedido, registros[0].total, listaItensPedido);
+            const pedido = new Pedido(registros[0].codigo, cliente, listaItensPedido);
             listaPedidos.push(pedido);
         }
 

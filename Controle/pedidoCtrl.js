@@ -4,31 +4,30 @@ import Pizza from "../Modelo/pizza.js";
 import ItemPedido from "../Modelo/itemPedido.js";
 
 export default class PedidoCtrl {
-    
-    
+
     gravar(requisicao, resposta) {
         resposta.type('application/json');
         if (requisicao.method === 'POST' && requisicao.is('application/json')) {
             const dados = requisicao.body;
             const cliente = dados.cliente;
-            const dataPedido = new Date(dados.dataPedido).toLocaleDateString();
-            const totalPedido = dados.totalPedido;
             const itensPedido = dados.itens;
 
-            
-            const objCliente = new Cliente(cliente.codigo); 
+    
+            console.log("Cliente código recebido:", cliente.codigo);
 
-           
+          
+            const objCliente = new Cliente(cliente.codigo);
+
             let itens = [];
             for (const item of itensPedido) {
                 const pizza = new Pizza(item.codigo);
-                const objItem = new ItemPedido(pizza, item.quantidade, item.precoUnitario);
+                const objItem = new ItemPedido(pizza, item.quantidade);
                 itens.push(objItem);
             }
 
-            const pedido = new Pedido(0, objCliente, dataPedido, totalPedido, itens);
+           
+            const pedido = new Pedido(0, objCliente, itens);
 
-          
             pedido.gravar().then(() => {
                 resposta.status(200).json({
                     "status": true,
@@ -49,7 +48,6 @@ export default class PedidoCtrl {
         }
     }
 
-   
     consultar(requisicao, resposta) {
         resposta.type('application/json');
         if (requisicao.method === 'GET') {
@@ -75,31 +73,25 @@ export default class PedidoCtrl {
         }
     }
 
-    
     alterar(requisicao, resposta) {
         resposta.type('application/json');
         if (requisicao.method === 'PUT' && requisicao.is('application/json')) {
             const dados = requisicao.body;
             const codigo = dados.codigo;
             const cliente = dados.cliente;
-            const dataPedido = new Date(dados.dataPedido).toLocaleDateString();
-            const totalPedido = dados.totalPedido;
             const itensPedido = dados.itens;
 
-          
             const objCliente = new Cliente(cliente.codigo);
 
-           
             let itens = [];
             for (const item of itensPedido) {
                 const pizza = new Pizza(item.codigo);
-                const objItem = new ItemPedido(pizza, item.quantidade, item.precoUnitario);
+                const objItem = new ItemPedido(pizza, item.quantidade);
                 itens.push(objItem);
             }
 
-            const pedido = new Pedido(codigo, objCliente, dataPedido, totalPedido, itens);
+            const pedido = new Pedido(codigo, objCliente, itens);
 
-        
             pedido.atualizar().then(() => {
                 resposta.status(200).json({
                     "status": true,
@@ -119,7 +111,6 @@ export default class PedidoCtrl {
         }
     }
 
-    
     excluir(requisicao, resposta) {
         resposta.type('application/json');
         if (requisicao.method === 'DELETE' && requisicao.is('application/json')) {
@@ -129,8 +120,7 @@ export default class PedidoCtrl {
             if (codigo) {
                 const pedido = new Pedido(codigo);
 
-        
-                pedido.apagar().then(() => {
+                pedido.deletar().then(() => {
                     resposta.status(200).json({
                         "status": true,
                         "mensagem": "Pedido excluído com sucesso!"
