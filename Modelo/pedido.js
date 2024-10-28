@@ -11,7 +11,6 @@ export default class Pedido {
         this.#itens = itens; 
     }
 
-    // Getters e Setters
     get codigo() {
         return this.#codigo;
     }

@@ -7,7 +7,6 @@ export default class ItemPedido {
         this.#quantidade = quantidade;
     }
 
-    // Getters e Setters
     get pizza() {
         return this.#pizza;
     }
